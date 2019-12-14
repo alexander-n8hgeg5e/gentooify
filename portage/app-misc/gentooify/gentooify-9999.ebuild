@@ -24,5 +24,4 @@ insinto "/usr/share/${PN}"
 doins license_notice_multifileprog
 doins license_notice_onefileprog
 doins ebuild-templates/*
-doins gpl-v3
 }
