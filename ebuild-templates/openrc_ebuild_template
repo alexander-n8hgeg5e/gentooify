@@ -1,0 +1,28 @@
+# Copyright 1999-2017 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+
+EAPI=6
+inherit git-r3
+DESCRIPTION="my init scripts"
+HOMEPAGE=""
+EGIT_REPO_URI="${CODEDIR}""/openrc-init-scripts https://github.com/alexander-n8hgeg5e/openrc-init-scripts.git"
+LICENSE="gpl3"
+SLOT="0"
+KEYWORDS="~amd64 ~x86"
+IUSE=""
+
+DEPEND=""
+RDEPEND="${DEPEND} sys-apps/openrc"
+
+src_install(){
+	doinitd etc/init.d/nfs-swap
+	doinitd etc/init.d/nfs-tmp
+	doinitd etc/init.d/x
+	doinitd etc/init.d/dusteater
+
+etc_confd_dir="etc/conf.d"
+dodir "${etc_confd_dir}"
+insinto "${etc_confd_dir}"
+doins "${etc_confd_dir}/nfs-swap"
+doins "${etc_confd_dir}/dusteater"
+}

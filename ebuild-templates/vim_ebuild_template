@@ -1,0 +1,18 @@
+# Copyright 1999-2018 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+
+EAPI=6
+
+EGIT_REPO_URI="${CODEDIR}/${PN} ${MYGITHUB_URIBASE}${PN}.git"
+
+inherit git-r3 vim-plugin eutils
+
+DESCRIPTION="vim plugin:"
+HOMEPAGE=""
+
+LICENSE=""
+KEYWORDS="~amd64"
+IUSE=""
+
+VIM_PLUGIN_HELPTEXT=\
+"This plugin does something"

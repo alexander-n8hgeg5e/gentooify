@@ -1,0 +1,738 @@
+#!/usr/bin/python3
+# Copyright 2018 Alexander Wilhelmi
+# This file is part of gentooify.
+# 
+# gentooify is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# gentooify is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with gentooify.  If not, see <http://www.gnu.org/licenses/>.
+# 
+# Diese Datei ist Teil von gentooify.
+# 
+# gentooify ist Freie Software: Sie können es unter den Bedingungen
+# der GNU General Public License, wie von der Free Software Foundation,
+# Version 3 der Lizenz oder (nach Ihrer Wahl) jeder neueren
+# veröffentlichten Version, weiter verteilen und/oder modifizieren.
+# 
+# gentooify wird in der Hoffnung, dass es nützlich sein wird, aber
+# OHNE JEDE GEWÄHRLEISTUNG, bereitgestellt; sogar ohne die implizite
+# Gewährleistung der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
+# Siehe die GNU General Public License für weitere Details.
+# 
+# Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
+# Programm erhalten haben. Wenn nicht, siehe <https://www.gnu.org/licenses/>.
+
+from subprocess import check_output as co
+from subprocess import call
+from sys import stdout
+import argparse
+import inspect
+from os import makedirs 
+from os.path import sep
+from os.path import abspath
+from os.path import isdir
+from os.path import isfile
+from os.path import exists
+from os import getcwd as cwd
+from os import path as p        
+from os.path import islink
+import shlex
+from hashlib import sha512 as hash
+
+#constants
+ebuild_portagedir =  'portage'
+default_category  =  'app-misc'
+default_myrepo_name  =  'my'
+default_copyingfilename  =  'COPYING'
+path_of_stuff = '/usr/share/gentooify'
+default_license_src_filename  = 'gpl-v3'
+license_notice_multifile =  'license_notice_multifileprog'
+license_notice_onefile =  'license_notice_onefileprog'
+config_file = '.gentooify'
+default_ebuild_version="9999"
+default_ebuild_template="default_ebuild_template"
+filename='/tmp/gentooify_'+hash('cwd'.encode()).hexdigest()[0:20]+'.py'
+startup=True
+
+grep_search_patterns = [
+      [  "#!.*python", "#"],
+      [  "#!.*bash",   "#"],
+      [  "#!.*sh",    "#"],
+      [  "#!.*fish","#"  ] ]
+
+find_search_patterns = [
+       [   "*.c",    "//"],
+       [   "*.cpp",  "//"],
+       [   "*.cxx", "//"],
+       [   "*.h",   "//"],
+        [  "*.sh",   "#"],
+        [  "*.bash", "#"],
+        [  "*.fish",   "#"],
+        [  "*.py"   ,   "#"] ]
+
+find_exclude_patterns = [
+        '.git'
+        ]
+
+grep_exclude_dir_patterns = [
+        '.git'
+        ]
+
+gentooified_find_patterns = [ "*.ebuild" ]
+
+
+def parse_args():
+    """Parse command-line arguments."""
+
+    parser = argparse.ArgumentParser(description='gentooify is the name. It makes ever')
+    parser.add_argument('-n', '--no-copyright-adding', action="store_true",default=False)
+    #parser.add_argument('-f', '--add-copying-file', action="store",default='y')
+    parser.add_argument('-t', '--testing', action="store_true",default=False)
+    parser.add_argument(dest='insert_copyright_in_files', nargs="*" ,action="store",  default=[] )
+    return parser.parse_args()
+
+args=parse_args()
+
+def get_some_source_files():
+    if args.no_copyright_adding:
+        return []
+    from subprocess import check_output as co
+    outp=[]
+    for i in find_search_patterns:
+         cmd=['find' ,'-type' ,'f']
+         for j in find_exclude_patterns:
+             cmd.extend(['!' ,'-name' , j])
+         cmd.extend(['-name' ,i[0]])
+         o=co(cmd, shell=False).decode( errors = 'replace' ).splitlines()
+         if len(o) > 0:
+             for j in o:
+                 outp.append([j,i[1]])
+    for i in grep_search_patterns:
+         cmd=['egrep' ,'-ri','--files-with-match']
+         for j in grep_exclude_dir_patterns:
+             cmd.append("--exclude-dir="+j)
+         cmd.append(i[0])
+         try:
+             o=co(cmd, shell=False).decode( errors = 'replace' ).splitlines()
+         except: pass
+         if len(o) > 0:
+             for j in o:
+                 outp.append([j,i[1]])
+
+    list_unique(outp)
+    return outp
+
+def check_files_missing_copyr(list):
+    if args.no_copyright_adding:
+        return []
+    ret=[]
+    for i in list:
+         cmd0=['head']
+         cmd0.append( i[0] )
+         outp=co( cmd0, shell=False).decode( errors = 'replace' ).splitlines()
+         found=False
+         for line  in outp:
+             if line.lower().find('copyright') is not -1:
+                 found=True
+                 break
+         if not found:
+            ret.append( i  )
+    return ret
+
+
+
+def __make_copyright_notice_years(years):
+    """
+    Returns the years as string.
+    Years is one year as integer, or list of years.
+    """
+
+    #first decide if years is a list or a single year.
+    if type(years) is not type([]):
+        retval = str(years)
+    else:
+        years.sort()
+        print(years)
+        divider=', '
+        retval = ''
+        if len(years) > 2:
+            retval = str(years[0])  #first year
+            # years in between first and last
+            for i in range(1,len(years)-1):
+                if years[i] == years[i-1]+1:
+                    # "previous in list is last in time" need "-" if not already there
+                    if not retval[-1] is '-':
+                        print(years[i])
+                        retval = retval + '-'
+                        if not years[i] is years[i+1]-1:
+                            #finish it by appending the year
+                            retval= retval + str(years[i])
+                    else:
+                        # there is a '-' already there
+                        if years[i] is years[i+1]-1:
+                           #next in list is next in time
+                           pass
+                        else:
+                            #finish it by appending the year
+                            retval= retval + str(years[i])
+                else:
+                    # previous in list is not last in time -> 
+                    retval=retval+divider+str(years[i])
+            # last year
+            if retval[-1] is '-':
+                retval = retval+str(years[-1])
+            else:
+                retval = retval+divider+str(years[-1])
+        else:
+           retval = str(years[0])+divider+str(years[1])
+
+    return retval
+
+
+
+def __make_copyright_notice_line(yearstring,namestring):
+    return 'Copyright'+' '+yearstring+' '+namestring 
+   
+def list_unique(outp):
+    dupindexlist=[]
+    l=len(outp)
+    for i in range(0,l):
+        si=str(outp[i])
+        for j in range(i,l):
+            if   si == str(outp[j]):
+                if not (i == j):
+                    dupindexlist.append(i)
+                    break
+    dupindexlist.sort(reverse=True)
+    for i in dupindexlist:
+        outp.pop(i)
+    return outp
+
+def make_copyright_notice(names, years):
+    """
+    Returns the notice as string.
+    Years is one year as integer, or list of years.
+    Name is one name as string, or list of names/persons.
+
+    More info here: https://www.gnu.org/licenses/gpl-howto
+    """
+
+    #need yearstring
+    yearstring = __make_copyright_notice_years(years)
+
+    #decide if names is a list or a single year.
+    if type(names) is not type([]):
+        retval = __make_copyright_notice_line(yearstring,names)
+    else:
+        names.sort()
+        divider='\n'
+        retval = ''
+        if len(names) > 2:
+            retval = str(names[0])  #first year
+            # names in between first and last
+            for i in range(1,len(names)):
+                retval=retval+divider+__make_copyright_notice_line(yearstring,names[i])
+        else:
+            retval = __make_copyright_notice_line(yearstring,names[0])+divider+__make_copyright_notice_line(yearstring,names[1])
+    return retval
+
+
+def gen_copyr_lines(values):
+    from os.path import sep
+    if true(values['multifile'][0]):
+        src_f=open(path_of_stuff + sep + license_notice_multifile , mode='rt')
+        data=src_f.read()
+        for i in ['Foobar','Fubar']:
+            while True:
+                pos=data.find(i)
+                if pos is -1:
+                    break
+                data = data[0:pos]+values['app_name'][0]+data[pos+len(i):]
+        src_f.close()
+    else:
+        src_f=open(path_of_stuff + sep + license_notice_onefile , mode='rt')
+        data=src_f.read()
+        src_f.close()
+    # prepend the copyr lines
+    line0 = make_copyright_notice(values['authors'][0],values['years'][0])
+    lines1 = data.splitlines()
+    lines=[line0]+lines1
+    return lines
+
+
+def do_copyright_insertion(values):
+    lines=gen_copyr_lines(values)
+    if not git_clean():
+        raise Exception('error: git clean required.')
+    for i in values['insert_copyright_in_files'][0]:
+        print(i)
+        insert_in_file(i[0],i[1], lines)
+
+def insert_in_file(fn, commentsign , l):
+    print(fn)
+    lines=[]
+    for i in l:
+        lines.append( commentsign +' '+ i+'\n')
+    f=open(fn,'r+')
+    done=False
+    for i in range(0,5):
+        a = f.readline()
+        pos=f.tell()
+        if a.strip()[0:5].find("#!") is not -1:
+            content = f.readlines()
+            newcontent = lines + content
+            f.seek(pos)
+            f.writelines( newcontent )
+            f.close()
+            done=True
+            break
+    if not done:
+        f.seek(0)
+        content = f.readlines() 
+        newcontent = lines + content
+        f.seek(0)
+        f.writelines( newcontent )
+        f.close()
+
+def git_clean():    
+    from os.path import isdir
+    from os.path import isfile
+    cmd=['g']
+    outp=co(cmd).decode( errors = 'replace' ).splitlines()
+    if len(outp) == 0:
+        if isdir('.git'):
+            return True
+        else:
+            if isfile(".git"):
+                return True
+    return False
+     
+
+
+def guess_the_count_of_source_files():
+    outp=[]
+    for i in find_search_patterns:
+         cmd=['find' ,'-type' ,'f']
+         for j in find_exclude_patterns:
+             cmd.extend(['!' ,'-name' , j])
+         cmd.extend(['-name' ,i[0]])
+         outp.extend(co(cmd, shell=False).decode( errors = 'replace' ).splitlines())
+    for i in grep_search_patterns:
+         cmd=['egrep' ,'-ri','--files-with-match']
+         for j in grep_exclude_dir_patterns:
+             cmd.append("--exclude-dir="+j)
+         cmd.append(i[0])
+         try:
+             outp.extend(co(cmd, shell=False).decode( errors = 'replace' ).splitlines())
+         except: pass
+    list_unique(outp)
+    return len (outp)
+
+
+def guess_gentooified():
+    '''
+    Returns false if not.
+    Returns the suspicious files as list , if the  guess is gentooified.
+    '''
+    from subprocess import check_output as co
+    outp=[]
+    for i in gentooified_find_patterns:
+         cmd=['find' ,'-type' ,'f']
+         for j in find_exclude_patterns:
+             cmd.extend(['!' ,'-name' , j])
+         cmd.extend(['-name' ,i])
+         outp.extend(co(cmd, shell=False).decode( errors = 'replace' ).splitlines())
+    list_unique(outp)
+    if len (outp) > 0 :
+        return outp
+    else:
+        return False
+
+
+def get_link_target(values):
+    """
+    returns the link target path relative to the dir to be gentooified
+    ebuild_dir is relative like that: portage/categeory/ebuildname
+    the link will be placed relative to the portage repo root at categeory/the_link
+    the algorithm:
+    take the to pathes make them absolute and strip the common part away
+    """
+    ebuild_dir_absolute = abspath(values['ebuild_dir'][0])
+    place_for_the_link_absolute = values["myrepo_path"][0] + sep + values['category'][0]
+
+    ebuild_dir_absolute_splitted = ebuild_dir_absolute.split('/')
+    place_for_the_link_absolute_splitted = place_for_the_link_absolute.split('/')
+
+    ed=ebuild_dir_absolute_splitted
+    lp=place_for_the_link_absolute_splitted
+    
+    # strip leading '/'
+    if ed[0] == '':
+        ed=ed[1:]
+    if lp[0] == '':
+        lp=lp[1:]
+
+    l0=len(ebuild_dir_absolute_splitted)
+    l1=len(place_for_the_link_absolute_splitted)
+    ll=max(l0,l1)
+
+    count=0
+    for i in range(ll):
+        if ed[i] != lp[i]:
+            count = i
+            break
+     
+    if count > 0:
+        ebuild_dir = '/'.join(ed[count:])
+        print(lp)
+        len_lp=len(lp[count:])
+    else:
+        ebuild_dir = ed.join('/')
+        len_lp=len(lp)
+
+    back='/'.join(['..']*len_lp)
+
+    return back + sep + ebuild_dir
+
+
+def  scan_values():
+      """
+      tries to find the values, and returns the best guess.
+      valueformat: { 'key' : ( value , editable , "comment" }
+      """
+      values = {
+             'app_name' : (None, True, None),
+             'category' : (default_category, True, None),
+             'version'  : (default_ebuild_version, True, None),
+             'gentooified' : (guess_gentooified(), False, "whether this path is already gentooified ?"),
+             'myrepo_path' : (None, True, None),
+             'add_copyingfile' : ("y", True, None),
+             'copyingfilename' : (None, True, "here will copying notice be put in"),
+             'license_src_file' : (default_license_src_filename, True, "select license source file"),
+             'authors' : (None, True, "autors to put in the copyright notices"),
+             'years'   : (None, True, None),
+             'multifile': ("y" , True, "is multifile project ? affects license"),
+             'ebuild_template' : (None, True, "select ebuild template"),
+             'insert_copyright_in_files': [[], True, "delete to disable"]}
+      values['app_name'] =  ( p.basename(p.abspath(p.curdir))  , True, None )
+      values['myrepo_path'] =  ( scan_repo_dir() , True, None )
+      values['copyingfilename'] =  ( p.abspath(p.curdir)+ p.sep + default_copyingfilename ,values['copyingfilename'][1] , values['copyingfilename'][2] )
+      values['insert_copyright_in_files']= [ check_files_missing_copyr(get_some_source_files()) + convert_insert_copyright_in_files() ,values['insert_copyright_in_files'][1] , values['insert_copyright_in_files'][2] ]
+      values['authors'] =  ( scan_author() , values['authors'][1] , values['authors'][2] )
+      values['years'] =  ( get_year() , values['years'][1], values['years'][2] )
+      values['ebuild_template'] =  ( path_of_stuff + p.sep + default_ebuild_template , values['ebuild_template'][1], values['ebuild_template'][2] )
+
+      return values
+
+def add_non_edit_values(values):
+    """
+    these values not edit
+    """
+    values.update({'ebuild_dir' : ( None , False, "comment" ) })
+    print(values)
+    values['ebuild_dir'] = ( ebuild_portagedir + p.sep + values['category'][0] + p.sep + values['app_name'][0] , False, "comment"  )
+    values['ebuild'] =  ( values['ebuild_dir'][0] + p.sep + values["app_name"][0]+ '-' + values["version"][0] + '.ebuild' , False, "comment" )
+    return values  
+
+def convert_insert_copyright_in_files():
+    l=[]
+    for i in args.insert_copyright_in_files:
+        l.append([i,'#'])
+    return l
+
+def true(a):
+   if a=='true': return True
+   if a=='false': return False
+   if a=='True': return True
+   if a=='False': return False
+   if a=='yes': return True
+   if a=='no': return False
+   if a=='y': return True
+   if a=='n': return False
+   if a=='Y': return True
+   if a=='N': return False
+   if a=='Yes': return True
+   if a=='No': return False
+   if a=='YES': return True
+   if a=='NO': return False
+   return None
+
+def scan_repo_dir():
+   from shlex import split
+   from subprocess import check_output as co
+   cmds = [[ "portageq","get_repos", "/"]]
+   cmds.append( ["portageq" ,"get_repo_path", "/", default_myrepo_name ] )
+   outp=[co(cmds[0],shell=False)]
+   if outp[0].decode( errors = 'replace' ).find(default_myrepo_name) is not -1:
+       outp.append( co(cmds[1],shell=False).decode( errors = 'replace' ).strip() )
+   from os.path import abspath
+   return abspath(outp[1])
+
+def get_year():
+    from time import asctime
+    t=asctime()
+    return int(t[-4:])
+
+def scan_author():
+    from os import environ
+    from os.path import abspath
+    from os.path import sep
+    from os.path import isfile
+    homdir = abspath(environ.get("HOME"))
+    conff=homdir + sep + config_file 
+    if isfile(conff): 
+        f=open(conff,"rt")
+        data=f.readlines()
+        f.close()
+        keyw='author='
+        for i in data:
+            pos=i.find(keyw)
+            if not pos is -1:
+                author=i[pos+len(keyw):].strip()
+                if len(author) > 0:
+                    break
+    else:
+        author = environ.get("USER")
+
+    return author
+        
+
+def print_values(values,file=stdout):
+    """
+    prints em out nice
+    """
+    # get max key len
+    max=0
+    for key in values.keys():
+        if len(key)>max:
+            max=len(key)
+
+    for key in values.keys():
+        # key
+        a=15
+
+        if len(key) > max:
+            raise Exception('unexpected case')
+            p=key[0:max]
+        else:
+            #fill with space
+            p=key
+            for i in range(0,max-len(key)):
+                p=' '+p
+
+        ## editable notice
+        if values[key][1]:
+            p=p+' : '
+        else:
+            p=p+' = '
+
+        if values[key][2] is not None:
+            commentstr = str("   ## "+values[key][2])
+        else:
+            commentstr = ""
+
+        ## value
+        if type(values[key][0]) is type(''):
+                # string -> quote it
+                print(p+str(values[key][0])+commentstr,file=file)
+        elif type(values[key][0]) is type([]):
+            # list type no qutes
+            print(p+str(values[key][0])+commentstr,file=file)
+        elif type(values[key][0]) is type(bool):
+            print(p+str(values[key][0])+commentstr,file=file)
+        else:
+            print(p+str(values[key][0])+commentstr,file=file)
+
+    
+
+
+def editor(values,fromfile=False):
+    if not fromfile:
+        f=open(filename,'wt')
+        print_values(values,f)
+        f.close()
+        print()
+        print("Attention! After edit maybe file gets SOURCED !")
+        print()
+    ## edit
+    call(['e', '-w','-g', filename])
+    ## read stuff back
+    d={}
+    # after file opening if something goes wrong,
+    # it's probably due to wrong input.
+    # So catch exception and offer reedit.
+    print("file scanning...")
+    try:
+        f=open(filename)
+        # 'a' :b # c
+        for line in f:
+           line_ab_c = line.strip('\n').split("##",1)
+           if len(line_ab_c)>=2: # has comment
+                 comment=line_ab_c[1]
+           else:
+                 comment=None
+           line_a_b = line_ab_c[0].split(":",1)
+           print("line_a_b :"+ str(line_a_b))
+           a=''
+           b=''
+           data=''
+           if len(line_a_b) == 2: # this checks for existing data
+               a=line_a_b[0].strip()
+               b=line_a_b[1].strip()
+               print('a: '+str(a))
+               print('b: '+str(b))
+               # data is list or string?
+               if len(b) == 0:
+                   b=" "
+               if b[0] == "[" : # list case
+                   print("list case")
+                   data = eval(b)
+                   print("data: "+str(data))
+               else: # string
+                   print("string case")
+                   data=b
+               # key
+               key=a
+               print("key: "+str(key))
+               print("data: "+str(data))
+               editable = values[key][1]
+               if len(key) > 0:
+                   if len(data) == 1:
+                        # string
+                        d.update({ key : ( data, editable, comment ) })
+                   else: #list
+                        d.update({ key : ( data , editable , comment   ) })
+        f.close()
+    except KeyboardInterrupt: raise
+    except Exception as e:
+        print('something went wrong during edit...: '+str(e))
+        raise e
+        inp = input( "want to re-edit ? ((e)dit/(r)eset/e(x)it):" )
+        if inp == 'e':
+            return editor(values,fromfile=True)
+        elif inp == 'r':
+            return editor(values)
+        else:
+            raise
+    return d
+
+
+def gentooify():
+    ret = gentooify_stage1()
+    if not ret is False:
+        gentooify_stage2(ret)
+
+def gentooify_stage1():
+    '''
+    start gentooifying by asking the user whether the values are ok.
+    '''
+    values = scan_values()
+    inp=None
+    if not values['gentooified'][0] == False:
+        inp=input('probably already gentooified. continue? (y)es/No:')
+        if not ((inp == "y") or (inp =="yes")):
+            exit(1)
+    if args.no_copyright_adding:
+        values[ 'insert_copyright_in_files' ][0]=None
+    while True:
+       print_values(values)
+       print()
+
+       inp = input( "want to continue? (Yes/No/(e)dit):" )
+       if inp == 'Yes':
+           return values
+       elif inp == 'e':
+           global startup
+           if isfile(filename) and startup:
+               startup=False
+               inp = input( "edit (e)xisting? (r)eset?" )
+               if inp=='e':
+                   values = editor(values,fromfile=True)
+               elif inp=="r":
+                   values = editor(values,fromfile=False)
+               else:
+                   raise Exception("Unexpected user input")
+           else:
+               values = editor(values,fromfile=False)
+
+
+       else:
+           return False
+
+
+def gentooify_stage2(values):
+    '''
+    gentooify non interactive with the given values.
+    '''
+
+    #first this one , because it checks for clean git
+    values = add_non_edit_values(values)
+    if values["insert_copyright_in_files"][0] is not None and len( (values["insert_copyright_in_files"][0]) ) > 0 and true(values['insert_copyright_in_files'][0]):
+        do_copyright_insertion(values)
+
+
+    # copying file
+    if true(values['add_copyingfile']):
+        if not isfile(values['copyingfilename'][0]):
+            srcfname = path_of_stuff + sep + values['license_src_file'][0]
+            destfname = values['copyingfilename'][0]
+            srcfile= open( srcfname, 'rt'  ) 
+            dstfile= open( destfname, 'wt' )
+            dstfile.write( srcfile.read()  )
+            srcfile.close()
+            dstfile.close()
+        else:
+            print()
+            print('warning: file already exists: ' + values['copyingfilename'][0])
+            print()
+
+    # make ebuild path
+    if not ( len( (values['category'][0]).strip() ) == 0 ):
+        if not isdir(values['ebuild_dir'][0]):
+            makedirs(values['ebuild_dir'][0])
+        else:
+            print()
+            print('warning: path already exists: '+values['ebuild_dir'][0])
+            print()
+
+    # symlink
+    from os import symlink
+    thingtolink = get_link_target(values)
+    categeory_dir = values["myrepo_path"][0] + sep + values['category'][0] # the categeory dir in the portage repo that will contain the symlink
+    link_name = values["myrepo_path"][0] + sep + values['category'][0] + sep + values['app_name'][0]
+    if not len( (values['ebuild'][0]).strip() ) == 0:
+        if not exists(categeory_dir):
+            makedirs(categeory_dir)
+        if not islink(link_name):
+            symlink(thingtolink, link_name)
+        else:
+            print()
+            print('warning: link already exists: ' +link_name)
+            print()
+            from subprocess import check_output as co
+            print(co(['ls' ,'-l',link_name],shell=False).decode( errors = 'replace' ))
+
+    # ebuild
+    if not len(values['ebuild_template'][0]) == 0:
+        if not isfile(values['ebuild'][0]):
+            srcfname = values['ebuild_template'][0]
+            destfname = values['ebuild'][0]
+            srcfile=open( srcfname, 'rt' ) 
+            dstfile=open( destfname, 'wt' )
+            dstfile.write(srcfile.read())
+            srcfile.close()
+            dstfile.close()
+        else:
+            print()
+            print('warning: file already exists: ' + values['ebuild'][0])
+            print()
+
+gentooify()
