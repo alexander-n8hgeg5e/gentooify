@@ -44,8 +44,10 @@ from os.path import exists
 from os import getcwd as cwd
 from os import path as p        
 from os.path import islink
+from os import listdir
 import shlex
 from hashlib import sha512 as hash
+#from pylib.du import dd
 
 #constants
 ebuild_portagedir =  'portage'
@@ -53,7 +55,7 @@ default_category  =  'app-misc'
 default_myrepo_name  =  'my'
 default_copyingfilename  =  'COPYING'
 path_of_stuff = '/usr/share/gentooify'
-default_license_src_filename  = 'gpl-v3'
+default_license_src_filename  = 'GPL-3'
 license_notice_multifile =  'license_notice_multifileprog'
 license_notice_onefile =  'license_notice_onefileprog'
 config_file = '.gentooify'
@@ -410,7 +412,7 @@ def  scan_values():
       """
       values = {
              'app_name' : (None, True, None),
-             'category' : (default_category, True, None),
+             'category' : [default_category, True, None],
              'version'  : (default_ebuild_version, True, None),
              'gentooified' : (guess_gentooified(), False, "whether this path is already gentooified ?"),
              'myrepo_path' : (None, True, None),
@@ -429,6 +431,11 @@ def  scan_values():
       values['authors'] =  ( scan_author() , values['authors'][1] , values['authors'][2] )
       values['years'] =  ( get_year() , values['years'][1], values['years'][2] )
       values['ebuild_template'] =  ( path_of_stuff + p.sep + default_ebuild_template , values['ebuild_template'][1], values['ebuild_template'][2] )
+      values['license_dir'] =  ( values['myrepo_path'][0] + p.sep + "licenses" , False , "" )
+
+      dirlist=listdir("./portage")
+      if len(dirlist) == 1 and isdir("./portage/"+dirlist[0]):
+            values['category'][0]=dirlist[0]
 
       return values
 
@@ -449,21 +456,21 @@ def convert_insert_copyright_in_files():
     return l
 
 def true(a):
-   if a=='true': return True
-   if a=='false': return False
-   if a=='True': return True
-   if a=='False': return False
-   if a=='yes': return True
-   if a=='no': return False
-   if a=='y': return True
-   if a=='n': return False
-   if a=='Y': return True
-   if a=='N': return False
-   if a=='Yes': return True
-   if a=='No': return False
-   if a=='YES': return True
-   if a=='NO': return False
-   return None
+    if a=='true': return True
+    if a=='false': return False
+    if a=='True': return True
+    if a=='False': return False
+    if a=='yes': return True
+    if a=='no': return False
+    if a=='y': return True
+    if a=='n': return False
+    if a=='Y': return True
+    if a=='N': return False
+    if a=='Yes': return True
+    if a=='No': return False
+    if a=='YES': return True
+    if a=='NO': return False
+    return None
 
 def scan_repo_dir():
    from shlex import split
@@ -646,8 +653,8 @@ def gentooify_stage1():
        print_values(values)
        print()
 
-       inp = input( "want to continue? (Yes/No/(e)dit):" )
-       if inp == 'Yes':
+       inp = input( "want to continue? (Y)es/No/(e)dit :" )
+       if inp == 'Y':
            return values
        elif inp == 'e':
            global startup
@@ -680,9 +687,9 @@ def gentooify_stage2(values):
 
 
     # copying file
-    if true(values['add_copyingfile']):
+    if true(values['add_copyingfile'][0]):
         if not isfile(values['copyingfilename'][0]):
-            srcfname = path_of_stuff + sep + values['license_src_file'][0]
+            srcfname = values['myrepo_path'][0]+sep+"licenses" + sep + values['license_src_file'][0]
             destfname = values['copyingfilename'][0]
             srcfile= open( srcfname, 'rt'  ) 
             dstfile= open( destfname, 'wt' )
