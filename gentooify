@@ -687,7 +687,7 @@ def gentooify_stage2(values):
 
     #first this one , because it checks for clean git
     values = add_non_edit_values(values)
-    if values["insert_copyright_in_files"][0] is not None and len( (values["insert_copyright_in_files"][0]) ) > 0 and true(values['insert_copyright_in_files'][1]):
+    if values["insert_copyright_in_files"][0] is not None and len( (values["insert_copyright_in_files"][0]) ) > 0 and true(values['insert_copyright_in_files'][0]):
         do_copyright_insertion(values)
 
 
