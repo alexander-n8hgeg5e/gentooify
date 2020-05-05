@@ -457,6 +457,8 @@ def convert_insert_copyright_in_files():
     return l
 
 def true(a):
+    if type(a) is str:
+        a=a.strip()
     if a=='true': return True
     if a=='false': return False
     if a=='True': return True
