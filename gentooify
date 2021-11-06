@@ -423,7 +423,7 @@ def  scan_values():
              'years'   : (None, True, None),
              'multifile': ("y" , True, "is multifile project ? affects license"),
              'ebuild_template' : (None, True, "select ebuild template"),
-             'insert_copyright_in_files': [[], True, "delete to disable"]}
+             'insert_copyright_in_files': [[], True, "remove parts to disable, and note that otherwise the comment-char is needed"]}
       values['app_name'] =  ( p.basename(p.abspath(p.curdir))  , True, None )
       values['myrepo_path'] =  ( scan_repo_dir() , True, None )
       values['copyingfilename'] =  ( p.abspath(p.curdir)+ p.sep + default_copyingfilename ,values['copyingfilename'][1] , values['copyingfilename'][2] )
