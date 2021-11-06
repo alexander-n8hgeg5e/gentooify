@@ -142,7 +142,7 @@ def check_files_missing_copyr(list):
          outp=co( cmd0, shell=False).decode( errors = 'replace' ).splitlines()
          found=False
          for line  in outp:
-             if line.lower().find('copyright') is not -1:
+             if line.lower().find('copyright') != -1:
                  found=True
                  break
          if not found:
@@ -171,7 +171,7 @@ def __make_copyright_notice_years(years):
             for i in range(1,len(years)-1):
                 if years[i] == years[i-1]+1:
                     # "previous in list is last in time" need "-" if not already there
-                    if not retval[-1] is '-':
+                    if not retval[-1] == '-':
                         print(years[i])
                         retval = retval + '-'
                         if not years[i] is years[i+1]-1:
@@ -189,7 +189,7 @@ def __make_copyright_notice_years(years):
                     # previous in list is not last in time -> 
                     retval=retval+divider+str(years[i])
             # last year
-            if retval[-1] is '-':
+            if retval[-1] == '-':
                 retval = retval+str(years[-1])
             else:
                 retval = retval+divider+str(years[-1])
@@ -255,7 +255,7 @@ def gen_copyr_lines(values):
         for i in ['Foobar','Fubar']:
             while True:
                 pos=data.find(i)
-                if pos is -1:
+                if pos == -1:
                     break
                 data = data[0:pos]+values['app_name'][0]+data[pos+len(i):]
         src_f.close()
@@ -288,7 +288,7 @@ def insert_in_file(fn, commentsign , l):
     for i in range(0,5):
         a = f.readline()
         pos=f.tell()
-        if a.strip()[0:5].find("#!") is not -1:
+        if a.strip()[0:5].find("#!") != -1:
             content = f.readlines()
             newcontent = lines + content
             f.seek(pos)
@@ -483,7 +483,7 @@ def scan_repo_dir():
    cmds = [[ "portageq","get_repos", "/"]]
    cmds.append( ["portageq" ,"get_repo_path", "/", default_myrepo_name ] )
    outp=[co(cmds[0],shell=False)]
-   if outp[0].decode( errors = 'replace' ).find(default_myrepo_name) is not -1:
+   if outp[0].decode( errors = 'replace' ).find(default_myrepo_name) != -1:
        outp.append( co(cmds[1],shell=False).decode( errors = 'replace' ).strip() )
    from os.path import abspath
    return abspath(outp[1])
@@ -507,7 +507,7 @@ def scan_author():
         keyw='author='
         for i in data:
             pos=i.find(keyw)
-            if not pos is -1:
+            if not pos == -1:
                 author=i[pos+len(keyw):].strip()
                 if len(author) > 0:
                     break
