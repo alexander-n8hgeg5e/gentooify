@@ -766,3 +766,4 @@ def gentooify_stage2(values):
             print()
 
 gentooify()
+# vim: set foldlevel=0 :
