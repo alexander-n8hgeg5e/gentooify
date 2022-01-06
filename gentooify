@@ -103,13 +103,30 @@ def parse_args():
 
 args=parse_args()
 
-def get_or_check_files_and_commentmethod():
+def get_or_check_files_and_commentmethod(files=None):
+    """
+    returns files including the method how to comment them
+
+    returns list of iterable : [( file, how_to_comment ), ...]
+    """
+    if not files is None:
+        lf=len(files)
+        # basic check
+        files=[ o for o in filter(isfile,files)]
+        if lf < len(files):
+            # TODO: better error message
+            raise Exception('Error: Some of the supplied filenames are faulty')
     if args.no_copyright_adding:
+        if not files is None:
+            raise Exception("Error: unexpected state")
         return []
     from subprocess import check_output as co
     outp=[]
     for i in find_search_patterns:
-         cmd=['find' ,'-type' ,'f']
+         cmd=['find']
+         if not files is None:
+             cmd += files
+         cmd += ['-type' ,'f']
          for j in find_exclude_patterns:
              cmd.extend(['!' ,'-name' , j])
          cmd.extend(['-name' ,i[0]])
@@ -122,6 +139,8 @@ def get_or_check_files_and_commentmethod():
          for j in grep_exclude_dir_patterns:
              cmd.append("--exclude-dir="+j)
          cmd.append(i[0])
+         if not files is None:
+             cmd += files
          try:
              o=co(cmd, shell=False).decode( errors = 'replace' ).splitlines()
          except: pass
@@ -427,7 +446,11 @@ def  scan_values():
       values['app_name'] =  ( p.basename(p.abspath(p.curdir))  , True, None )
       values['myrepo_path'] =  ( scan_repo_dir() , True, None )
       values['copyingfilename'] =  ( p.abspath(p.curdir)+ p.sep + default_copyingfilename ,values['copyingfilename'][1] , values['copyingfilename'][2] )
-      values['insert_copyright_in_files']= [ check_files_missing_copyr(get_or_check_files_and_commentmethod()) + convert_insert_copyright_in_files() ,values['insert_copyright_in_files'][1] , values['insert_copyright_in_files'][2] ]
+      values['insert_copyright_in_files'] = [
+                                            check_files_missing_copyr(get_or_check_files_and_commentmethod(files=args.insert_copyright_in_files)),
+                                            values['insert_copyright_in_files'][1],
+                                            values['insert_copyright_in_files'][2], 
+                                            ]
       values['authors'] =  ( scan_author() , values['authors'][1] , values['authors'][2] )
       values['years'] =  ( get_year() , values['years'][1], values['years'][2] )
       values['ebuild_template'] =  ( path_of_stuff + p.sep + default_ebuild_template , values['ebuild_template'][1], values['ebuild_template'][2] )
@@ -449,12 +472,6 @@ def add_non_edit_values(values):
     values['ebuild_dir'] = ( ebuild_portagedir + p.sep + values['category'][0] + p.sep + values['app_name'][0] , False, "comment"  )
     values['ebuild'] =  ( values['ebuild_dir'][0] + p.sep + values["app_name"][0]+ '-' + values["version"][0] + '.ebuild' , False, "comment" )
     return values  
-
-def convert_insert_copyright_in_files():
-    l=[]
-    for i in args.insert_copyright_in_files:
-        l.append([i,'#'])
-    return l
 
 def true(a):
     if type(a) is str:
