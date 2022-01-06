@@ -473,7 +473,6 @@ def add_non_edit_values(values):
     these values not edit
     """
     values.update({'ebuild_dir' : ( None , False, "comment" ) })
-    print(values)
     values['ebuild_dir'] = ( ebuild_portagedir + p.sep + values['category'][0] + p.sep + values['app_name'][0] , False, "comment"  )
     values['ebuild'] =  ( values['ebuild_dir'][0] + p.sep + values["app_name"][0]+ '-' + values["version"][0] + '.ebuild' , False, "comment" )
     return values  
