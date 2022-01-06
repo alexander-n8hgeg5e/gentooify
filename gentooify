@@ -298,7 +298,7 @@ def do_copyright_insertion(values):
         insert_in_file(i[0],i[1], lines)
 
 def insert_in_file(fn, commentsign , l):
-    print(fn)
+    print(f'prepending copyright into "{fn}" ...')
     lines=[]
     for i in l:
         lines.append( commentsign +' '+ i+'\n')
