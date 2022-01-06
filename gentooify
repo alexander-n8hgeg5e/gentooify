@@ -586,7 +586,7 @@ def print_values(values,file=stdout):
     
 
 
-def editor(values,fromfile=False):
+def editor(values,fromfile=False,edit=True):
     if not fromfile:
         f=open(filename,'wt')
         print_values(values,f)
@@ -594,9 +594,10 @@ def editor(values,fromfile=False):
         print()
         print("Attention! After edit maybe file gets SOURCED !")
         print()
-    ## edit
-    call(['e', '-w','-g', filename])
-    ## read stuff back
+    if edit:
+        ## edit
+        call(['e', '-w','-g', filename])
+        ## read stuff back
     d={}
     # after file opening if something goes wrong,
     # it's probably due to wrong input.
