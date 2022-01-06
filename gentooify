@@ -305,6 +305,7 @@ def insert_in_file(fn, commentsign , l):
             lines.append( commentsign +' '+ i +'\n')
         else:
             lines.append( commentsign + '\n')
+    lines+=['\n']*2
     f=open(fn,'r+')
     done=False
     for i in range(0,5):
