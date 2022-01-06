@@ -759,7 +759,7 @@ def gentooify_stage2(values):
             if not isfile(values['ebuild'][0]):
                 srcfname = values['ebuild_template'][0]
                 destfname = values['ebuild'][0]
-                srcfile=open( srcfname, 'rt' ) 
+                srcfile=open( srcfname, 'rt' )
                 dstfile=open( destfname, 'wt' )
                 dstfile.write(srcfile.read())
                 srcfile.close()
