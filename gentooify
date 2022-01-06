@@ -301,7 +301,10 @@ def insert_in_file(fn, commentsign , l):
     print(f'prepending copyright into "{fn}" ...')
     lines=[]
     for i in l:
-        lines.append( commentsign +' '+ i+'\n')
+        if len(i.strip()) != 0 :
+            lines.append( commentsign +' '+ i +'\n')
+        else:
+            lines.append( commentsign + '\n')
     f=open(fn,'r+')
     done=False
     for i in range(0,5):
