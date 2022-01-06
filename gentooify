@@ -669,10 +669,6 @@ def gentooify_stage1():
     '''
     values = scan_values()
     inp=None
-    if not values['gentooified'][0] == False:
-        inp=input('probably already gentooified. continue? (y)es/No:')
-        if not ((inp == "y") or (inp =="yes")):
-            exit(1)
     if args.no_copyright_adding:
         values[ 'insert_copyright_in_files' ][0]=None
     while True:
