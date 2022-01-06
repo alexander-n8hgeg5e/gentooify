@@ -675,7 +675,7 @@ def gentooify_stage1():
        print_values(values)
        print()
 
-       inp = input( "want to continue? (Y)es/No/(e)dit :" )
+       inp = input( "want to continue? (Y)es/No/(e)dit/(r)eset/(l)oad-existing :" )
        if inp == 'Y':
            return values
        elif inp == 'e':
@@ -689,8 +689,10 @@ def gentooify_stage1():
                    values = editor(values,fromfile=False)
                else:
                    raise Exception("Unexpected user input")
-           else:
+       elif inp == 'r':
                values = editor(values,fromfile=False)
+       elif inp == 'l':
+               values = editor(values,fromfile=True,edit=False)
 
 
        else:
