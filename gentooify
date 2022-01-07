@@ -428,7 +428,7 @@ def get_link_target(values):
     return back + sep + ebuild_dir
 
 
-def  scan_values():
+def  prepare_values(scan=True):
       """
       tries to find the values, and returns the best guess.
       valueformat: { 'key' : ( value , editable , "comment" }
@@ -448,7 +448,11 @@ def  scan_values():
              'link_from_myrepo' : ("y", True, None),
              'add_ebuild_template' : ("y", True, None),
              'ebuild_template' : (None, True, "select ebuild template"),
-             'insert_copyright_in_files': [[], True, "remove parts to disable, and note that otherwise the comment-char is needed"]}
+             'insert_copyright_in_files': [[], True, "remove parts to disable, and note that otherwise the comment-char is needed"],
+             'license_dir'    :  ( None, False , "" ),
+             }
+      if not scan:
+          return values
       values['app_name'] =  ( p.basename(p.abspath(p.curdir))  , True, None )
       values['myrepo_path'] =  ( scan_repo_dir() , True, None )
       values['copyingfilename'] =  ( p.abspath(p.curdir)+ p.sep + default_copyingfilename ,values['copyingfilename'][1] , values['copyingfilename'][2] )
@@ -588,8 +592,8 @@ def print_values(values,file=stdout):
     
 
 
-def editor(values,fromfile=False,edit=True):
-    if not fromfile:
+def editor(values,reset_file=True,edit=True):
+    if reset_file:
         f=open(filename,'wt')
         print_values(values,f)
         f.close()
@@ -652,7 +656,7 @@ def editor(values,fromfile=False,edit=True):
         raise e
         inp = input( "want to re-edit ? ((e)dit/(r)eset/e(x)it):" )
         if inp == 'e':
-            return editor(values,fromfile=True)
+            return editor(values,reset_file=False)
         elif inp == 'r':
             return editor(values)
         else:
@@ -669,7 +673,10 @@ def gentooify_stage1():
     '''
     start gentooifying by asking the user whether the values are ok.
     '''
-    values = scan_values()
+    if not isfile(filename):
+        values = prepare_values(scan=True)
+    else:
+        values = prepare_values(scan=False)
     inp=None
     if args.no_copyright_adding:
         values[ 'insert_copyright_in_files' ][0]=None
@@ -686,15 +693,15 @@ def gentooify_stage1():
                startup=False
                inp = input( "edit (e)xisting? (r)eset?" )
                if inp=='e':
-                   values = editor(values,fromfile=True)
+                   values = editor(values,reset_file=False)
                elif inp=="r":
-                   values = editor(values,fromfile=False)
+                   values = editor(values,reset_file=True)
                else:
                    raise Exception("Unexpected user input")
        elif inp == 'r':
-               values = editor(values,fromfile=False)
+               values = editor(values,reset_file=True)
        elif inp == 'l':
-               values = editor(values,fromfile=True,edit=False)
+               values = editor(values,reset_file=False,edit=False)
 
 
        else:
