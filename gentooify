@@ -427,32 +427,33 @@ def get_link_target(values):
 
     return back + sep + ebuild_dir
 
+BASE_VALUES =   {
+                'app_name' : (None, True, None),
+                'category' : [default_category, True, None],
+                'version'  : (default_ebuild_version, True, None),
+                'gentooified' : (None, False, "whether this path is already gentooified ?"),
+                'myrepo_path' : (None, True, None),
+                'add_copyingfile' : ("y", True, None),
+                'copyingfilename' : (None, True, "here will copying notice be put in"),
+                'license_src_file' : (default_license_src_filename, True, "select license source file"),
+                'authors' : (None, True, "autors to put in the copyright notices"),
+                'years'   : (None, True, None),
+                'multifile': ("y" , True, "is multifile project ? affects license"),
+                'link_from_myrepo' : ("y", True, None),
+                'add_ebuild_template' : ("y", True, None),
+                'ebuild_template' : (None, True, "select ebuild template"),
+                'insert_copyright_in_files': [[], True, "remove parts to disable, and note that otherwise the comment-char is needed"],
+                'license_dir'    :  ( None, False , "" ),
+                }
 
-def  prepare_values(scan=True):
+
+def  scan_values(scan=True):
       """
       tries to find the values, and returns the best guess.
       valueformat: { 'key' : ( value , editable , "comment" }
       """
-      values = {
-             'app_name' : (None, True, None),
-             'category' : [default_category, True, None],
-             'version'  : (default_ebuild_version, True, None),
-             'gentooified' : (guess_gentooified(), False, "whether this path is already gentooified ?"),
-             'myrepo_path' : (None, True, None),
-             'add_copyingfile' : ("y", True, None),
-             'copyingfilename' : (None, True, "here will copying notice be put in"),
-             'license_src_file' : (default_license_src_filename, True, "select license source file"),
-             'authors' : (None, True, "autors to put in the copyright notices"),
-             'years'   : (None, True, None),
-             'multifile': ("y" , True, "is multifile project ? affects license"),
-             'link_from_myrepo' : ("y", True, None),
-             'add_ebuild_template' : ("y", True, None),
-             'ebuild_template' : (None, True, "select ebuild template"),
-             'insert_copyright_in_files': [[], True, "remove parts to disable, and note that otherwise the comment-char is needed"],
-             'license_dir'    :  ( None, False , "" ),
-             }
-      if not scan:
-          return values
+      values=BASE_VALUES.copy()
+      values['gentooified'] = (guess_gentooified(), values['gentooified'][1],values['gentooified'][2])
       values['app_name'] =  ( p.basename(p.abspath(p.curdir))  , True, None )
       values['myrepo_path'] =  ( scan_repo_dir() , True, None )
       values['copyingfilename'] =  ( p.abspath(p.curdir)+ p.sep + default_copyingfilename ,values['copyingfilename'][1] , values['copyingfilename'][2] )
@@ -589,21 +590,20 @@ def print_values(values,file=stdout):
         else:
             print(p+str(values[key][0])+commentstr,file=file)
 
-    
+def write_file(values):
+    f=open(filename,'wt')
+    print_values(values,f)
+    f.close()
+    print()
+    print("Attention! After edit maybe file gets SOURCED !")
+    print()
 
 
-def editor(values,reset_file=True,edit=True):
-    if reset_file:
-        f=open(filename,'wt')
-        print_values(values,f)
-        f.close()
-        print()
-        print("Attention! After edit maybe file gets SOURCED !")
-        print()
-    if edit:
-        ## edit
-        call(['e', '-w','-g', filename])
-        ## read stuff back
+def edit_file():
+    call(['e', '-w','-g', filename])
+
+def get_values_from_file():
+    values=BASE_VALUES.copy()
     d={}
     # after file opening if something goes wrong,
     # it's probably due to wrong input.
@@ -663,7 +663,6 @@ def editor(values,reset_file=True,edit=True):
             raise
     return d
 
-
 def gentooify():
     ret = gentooify_stage1()
     if not ret is False:
@@ -674,38 +673,30 @@ def gentooify_stage1():
     start gentooifying by asking the user whether the values are ok.
     '''
     if not isfile(filename):
-        values = prepare_values(scan=True)
+        values = scan_values()
+        write_file(values)
     else:
-        values = prepare_values(scan=False)
+        values = get_values_from_file()
     inp=None
     if args.no_copyright_adding:
         values[ 'insert_copyright_in_files' ][0]=None
     while True:
        print_values(values)
        print()
-
-       inp = input( "want to continue? (Y)es/No/(e)dit/(r)eset/(l)oad-existing :" )
+       inp = input( "want to continue? (Y)es/No/(e)dit/(r)eset/re(l)oad :" )
        if inp == 'Y':
-           return values
+            return values
        elif inp == 'e':
-           global startup
-           if isfile(filename) and startup:
-               startup=False
-               inp = input( "edit (e)xisting? (r)eset?" )
-               if inp=='e':
-                   values = editor(values,reset_file=False)
-               elif inp=="r":
-                   values = editor(values,reset_file=True)
-               else:
-                   raise Exception("Unexpected user input")
+            edit_file()
+            values=get_values_from_file()
        elif inp == 'r':
-               values = editor(values,reset_file=True)
+            values = scan_values()
+            write_file(values)
+            values=get_values_from_file()
        elif inp == 'l':
-               values = editor(values,reset_file=False,edit=False)
-
-
+            values=get_values_from_file()
        else:
-           return False
+            return False
 
 
 def gentooify_stage2(values):
