@@ -394,7 +394,6 @@ BASE_VALUES =   {
                 'authors' : (None, True, "autors to put in the copyright notices"),
                 'years'   : (None, True, None),
                 'multifile': ("y" , True, "is multifile project ? affects license"),
-                'link_from_myrepo' : ("y", True, None),
                 'add_ebuild_template' : ("y", True, None),
                 'ebuild_template' : (None, True, "select ebuild template"),
                 'insert_copyright_in_files': [[], True, "remove parts to disable, and note that otherwise the comment-char is needed"],
