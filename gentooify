@@ -479,7 +479,7 @@ def add_non_edit_values(values):
     these values not edit
     """
     values.update({'ebuild_dir' : ( None , False, "comment" ) })
-    values['ebuild_dir'] = ( ebuild_portagedir + p.sep + values['category'][0] + p.sep + values['app_name'][0] , False, "comment"  )
+    values['ebuild_dir'] = ( values["myrepo_path"][0] + p.sep + values['category'][0] + p.sep + values['app_name'][0] , False, "comment"  )
     values['ebuild'] =  ( values['ebuild_dir'][0] + p.sep + values["app_name"][0]+ '-' + values["version"][0] + '.ebuild' , False, "comment" )
     return values  
 
@@ -724,36 +724,19 @@ def gentooify_stage2(values):
             print('warning: file already exists: ' + values['copyingfilename'][0])
             print()
 
-    # make ebuild path
-    if true(values['add_ebuild_template']):
-        if not ( len( (values['category'][0]).strip() ) == 0 ):
-            if not isdir(values['ebuild_dir'][0]):
-                makedirs(values['ebuild_dir'][0])
-            else:
-                print()
-                print('warning: path already exists: '+values['ebuild_dir'][0])
-                print()
+    # template
+    if true(values['add_ebuild_template'][0]):
 
-    # symlink
-    from os import symlink
-    thingtolink = get_link_target(values)
-    categeory_dir = values["myrepo_path"][0] + sep + values['category'][0] # the categeory dir in the portage repo that will contain the symlink
-    link_name = values["myrepo_path"][0] + sep + values['category'][0] + sep + values['app_name'][0]
-    if true(values['link_from_myrepo']):
-        if not len( (values['ebuild'][0]).strip() ) == 0:
-            if not exists(categeory_dir):
-                makedirs(categeory_dir)
-            if not islink(link_name):
-                symlink(thingtolink, link_name)
-            else:
-                print()
-                print('warning: link already exists: ' +link_name)
-                print()
-                from subprocess import check_output as co
-                print(co(['ls' ,'-l',link_name],shell=False).decode( errors = 'replace' ))
+        # make ebuild path
+        if true(values['add_ebuild_template'][0]):
+            if not ( len( (values['category'][0]).strip() ) == 0 ):
+                if not isdir(values['ebuild_dir'][0]):
+                    makedirs(values['ebuild_dir'][0])
+                else:
+                    print()
+                    print('warning: path already exists: '+values['ebuild_dir'][0])
+                    print()
 
-    # ebuild
-    if true(values['add_ebuild_template']):
         if not len(values['ebuild_template'][0]) == 0:
             if not isfile(values['ebuild'][0]):
                 srcfname = values['ebuild_template'][0]
