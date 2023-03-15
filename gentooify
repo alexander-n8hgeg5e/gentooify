@@ -382,51 +382,6 @@ def guess_gentooified():
         return False
 
 
-def get_link_target(values):
-    """
-    returns the link target path relative to the dir to be gentooified
-    ebuild_dir is relative like that: portage/categeory/ebuildname
-    the link will be placed relative to the portage repo root at categeory/the_link
-    the algorithm:
-    take the to pathes make them absolute and strip the common part away
-    """
-    ebuild_dir_absolute = abspath(values['ebuild_dir'][0])
-    place_for_the_link_absolute = values["myrepo_path"][0] + sep + values['category'][0]
-
-    ebuild_dir_absolute_splitted = ebuild_dir_absolute.split('/')
-    place_for_the_link_absolute_splitted = place_for_the_link_absolute.split('/')
-
-    ed=ebuild_dir_absolute_splitted
-    lp=place_for_the_link_absolute_splitted
-    
-    # strip leading '/'
-    if ed[0] == '':
-        ed=ed[1:]
-    if lp[0] == '':
-        lp=lp[1:]
-
-    l0=len(ebuild_dir_absolute_splitted)
-    l1=len(place_for_the_link_absolute_splitted)
-    ll=max(l0,l1)
-
-    count=0
-    for i in range(ll):
-        if ed[i] != lp[i]:
-            count = i
-            break
-     
-    if count > 0:
-        ebuild_dir = '/'.join(ed[count:])
-        print(lp)
-        len_lp=len(lp[count:])
-    else:
-        ebuild_dir = ed.join('/')
-        len_lp=len(lp)
-
-    back='/'.join(['..']*len_lp)
-
-    return back + sep + ebuild_dir
-
 BASE_VALUES =   {
                 'app_name' : (None, True, None),
                 'category' : [default_category, True, None],
